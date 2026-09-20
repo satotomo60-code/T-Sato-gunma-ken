@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Webページが表示されるまで｜通信の流れシミュレータ</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="masthead">
+  <p class="unit">情報Ⅰ／Webページ閲覧の仕組み</p>
+  <h1>アドレスを入力してから、画面が出るまでに何が起きている？</h1>
+  <p class="aim">ブラウザ・DNSサーバ・Webサーバの間を行き来するデータを追いかけて、表示までの順番と、かかる時間のしくみをつかむ。</p>
+</header>
+
+<main>
+
+  <section class="stage-area" aria-labelledby="stage-h">
+    <h2 id="stage-h" class="section-h">通信のようす</h2>
+
+    <div class="stage">
+      <svg id="net" viewBox="0 0 860 440" role="img" aria-label="ブラウザ・DNSサーバ・Webサーバの通信を表す図">
+        <defs>
+          <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+            <feGaussianBlur stdDeviation="5" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        <g class="wires">
+          <line id="wire-dns" x1="130" y1="220" x2="690" y2="110"/>
+          <line id="wire-web" x1="130" y1="220" x2="690" y2="330"/>
+        </g>
+
+        <g id="packets"></g>
+
+        <g class="node node-pc" transform="translate(130,220)">
+          <rect x="-86" y="-58" width="172" height="116" rx="14"/>
+          <text class="n-title" x="0" y="-16">あなたのPC</text>
+          <text class="n-sub" x="0" y="10">ブラウザ</text>
+          <text class="n-ip" x="0" y="36">www.example.jp</text>
+        </g>
+
+        <g class="node node-dns" transform="translate(690,110)">
+          <rect x="-96" y="-46" width="192" height="92" rx="14"/>
+          <text class="n-title" x="0" y="-6">DNSサーバ</text>
+          <text class="n-sub" x="0" y="20">名前 → IPアドレス</text>
+        </g>
+
+        <g class="node node-web" transform="translate(690,330)">
+          <rect x="-96" y="-46" width="192" height="92" rx="14"/>
+          <text class="n-title" x="0" y="-6">Webサーバ</text>
+          <text class="n-sub" x="0" y="20">198.51.100.7</text>
+        </g>
+      </svg>
+
+      <ul class="legend">
+        <li><span class="chip req"></span>行き（リクエスト）</li>
+        <li><span class="chip res"></span>帰り（レスポンス）</li>
+        <li><span class="chip c-dns"></span>DNS</li>
+        <li><span class="chip c-html"></span>HTML</li>
+        <li><span class="chip c-css"></span>CSS</li>
+        <li><span class="chip c-img"></span>画像</li>
+      </ul>
+    </div>
+
+    <div class="stepcard">
+      <p class="step-no" id="step-no">これから</p>
+      <p class="step-title" id="step-title">アドレスバーに www.example.jp と入力したところ</p>
+      <p class="step-desc" id="step-desc">「再生」か「1ステップ進む」を押すと、ブラウザが最初に何をするのかが見えます。</p>
+    </div>
+  </section>
+
+  <aside class="console" aria-labelledby="console-h">
+    <h2 id="console-h" class="section-h">操作</h2>
+
+    <div class="buttons">
+      <button id="btn-play" class="btn primary">再生</button>
+      <button id="btn-step" class="btn">1ステップ進む</button>
+      <button id="btn-reset" class="btn ghost">最初から</button>
+    </div>
+
+    <div class="field">
+      <span class="field-label">再生の速さ</span>
+      <div class="segmented" id="speed" role="group" aria-label="再生の速さ">
+        <button class="seg" data-speed="0.25">とてもゆっくり</button>
+        <button class="seg is-on" data-speed="0.6">ゆっくり</button>
+        <button class="seg" data-speed="1.5">ふつう</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="imgs">ページにある画像の枚数　<output id="imgs-out">4</output> 枚</label>
+      <input type="range" id="imgs" min="1" max="12" step="1" value="4">
+    </div>
+
+    <div class="field">
+      <label for="conns">Webサーバへ同時につなげる数　<output id="conns-out">6</output> 本</label>
+      <input type="range" id="conns" min="1" max="6" step="1" value="6">
+      <p class="hint">ブラウザが1つのサーバへ同時に開ける接続の数は決まっています。1本にすると何が起きる？</p>
+    </div>
+
+    <div class="readout">
+      <span>経過時間<br><small>完成まで <b id="goal-time">0</b> ms</small></span>
+      <strong id="total-time">0</strong><span class="unit-ms">ms</span>
+    </div>
+    <button id="btn-record" class="btn small">この結果を記録する</button>
+
+    <h3 class="sub-h">通信のログ</h3>
+    <ol id="log" class="log" aria-live="polite"><li class="log-empty">まだ通信は始まっていません。</li></ol>
+  </aside>
+
+  <section class="waterfall-area" aria-labelledby="wf-h">
+    <h2 id="wf-h" class="section-h">ウォーターフォール図（どのファイルを、いつ、どれだけ待ったか）</h2>
+
+    <div class="wf" id="wf">
+      <div class="wf-ruler">
+        <div class="wf-name">ファイル</div>
+        <div class="wf-track" id="ruler-track"></div>
+        <div class="wf-time">受け取り</div>
+      </div>
+      <div id="wf-rows"></div>
+      <div class="wf-needle" id="wf-needle" hidden></div>
+    </div>
+
+    <p class="wf-note">うすい部分＝お願いが届くまで・順番待ちの時間／濃い部分＝中身が実際に届いている時間。</p>
+
+    <div class="records">
+      <h3 class="sub-h">記録して比べる</h3>
+      <table id="rec-table">
+        <thead><tr><th>画像の枚数</th><th>同時接続数</th><th>完成までの時間</th></tr></thead>
+        <tbody><tr class="rec-empty"><td colspan="3">条件を変えて「この結果を記録する」を押すと、ここに並べて比べられます。</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="quiz-area" aria-labelledby="quiz-h">
+    <h2 id="quiz-h" class="section-h">たしかめ</h2>
+    <div id="quiz" class="quiz"></div>
+  </section>
+
+  <details class="teacher">
+    <summary>授業の進め方メモ（指導者用・1コマ／30名）</summary>
+    <ol>
+      <li><b>導入 5分</b>　アドレスを入れてから画面が出るまでに何が起きているかを各自ノートに予想させる。</li>
+      <li><b>一斉 10分</b>　「1ステップ進む」で①〜⑤を順に確認。各ステップでログの文を生徒に読み上げさせる。</li>
+      <li><b>個人・ペア 15分</b>　画像の枚数を1枚と12枚で比べ、ウォーターフォール図の違いを記録表に残す。</li>
+      <li><b>ゆさぶり 10分</b>　同時接続数を6本から1本へ。「なぜ遅くなった？」をペアで説明し合う。</li>
+      <li><b>まとめ 10分</b>　「たしかめ」に取り組み、名前からIPを調べるのが先／HTMLを読んで初めて他のファイルが分かる／同時に運べる数に限りがある、の3点を板書。</li>
+    </ol>
+    <p>※時間の数値は仕組みを理解するための目安で、実際の通信時間ではありません。</p>
+  </details>
+
+</main>
+
+<footer class="foot">情報Ⅰ 授業用シミュレータ／数値は学習用の目安です。</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
